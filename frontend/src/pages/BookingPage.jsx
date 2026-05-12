@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { dummySeminarHalls } from '../utils/dummyData';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import { toast } from 'react-toastify';
@@ -24,11 +23,9 @@ export default function BookingPage() {
     const fetchHallDetails = async () => {
       try {
         setLoading(true);
-        setTimeout(() => {
-          const foundHall = dummySeminarHalls.find(h => h._id === hallId) || dummySeminarHalls[0];
-          setHall(foundHall);
-          setLoading(false);
-        }, 300);
+        const { data } = await api.get(`/halls/${hallId}`);
+        setHall(data);
+        setLoading(false);
       } catch (error) {
         toast.error('Failed to fetch hall details');
         navigate('/dashboard');
@@ -52,11 +49,21 @@ export default function BookingPage() {
     }
 
     setSubmitting(true);
-    setTimeout(() => {
-      toast.success('Booking confirmed successfully! (Dummy Data Mode)');
+    try {
+      await api.post('/bookings', {
+        hall: hallId,
+        date,
+        startTime,
+        endTime,
+        purpose
+      });
+      toast.success('Booking request submitted successfully!');
       navigate('/dashboard');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to submit booking');
+    } finally {
       setSubmitting(false);
-    }, 800);
+    }
   };
 
   if (loading) return <div className="text-center py-12">Loading hall details...</div>;

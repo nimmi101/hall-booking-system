@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { dummySeminarHalls, dummyBookings } from '../utils/dummyData';
 import { Link } from 'react-router-dom';
 import api from '../utils/api';
 import { toast } from 'react-toastify';
@@ -19,16 +18,13 @@ export default function UserDashboard() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      setTimeout(() => {
-        // Using 'u2' (John Doe) as a dummy logged-in user to show some bookings
-        const myBookings = dummyBookings.filter(b => b.user === 'u2').map(b => ({
-          ...b,
-          hall: dummySeminarHalls.find(h => h._id === b.hall) || null
-        }));
-        setHalls(dummySeminarHalls);
-        setBookings(myBookings);
-        setLoading(false);
-      }, 500);
+      const [hallsRes, bookingsRes] = await Promise.all([
+        api.get('/halls'),
+        api.get('/bookings/mybookings')
+      ]);
+      setHalls(hallsRes.data);
+      setBookings(bookingsRes.data);
+      setLoading(false);
     } catch (error) {
       toast.error('Failed to load dashboard data');
       setLoading(false);
@@ -155,16 +151,19 @@ export default function UserDashboard() {
                       {booking.startTime} - {booking.endTime}
                     </td>
                     <td className="p-4 text-gray-600">{booking.purpose}</td>
-                    <td className="p-4">
+                     <td className="p-4">
                       <span className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full ${
-                        booking.status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        booking.status === 'confirmed' ? 'bg-green-100 text-green-800' : 
+                        booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                        booking.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
                       }`}>
                         {booking.status === 'confirmed' ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
                         {booking.status}
                       </span>
                     </td>
                     <td className="p-4 text-right">
-                      {booking.status === 'confirmed' && new Date(booking.date) >= new Date(new Date().setHours(0,0,0,0)) && (
+                      {(booking.status === 'confirmed' || booking.status === 'pending') && new Date(booking.date) >= new Date(new Date().setHours(0,0,0,0)) && (
                         <button
                           onClick={() => handleCancelBooking(booking._id)}
                           className="text-red-500 hover:text-red-700 text-sm font-medium transition-colors"

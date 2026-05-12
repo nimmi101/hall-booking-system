@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import api from '../utils/api';
 import { toast } from 'react-toastify';
-import { Users, Calendar as CalendarIcon, Layout, Activity, Plus, Edit2, Trash2 } from 'lucide-react';
+import { Users, Calendar as CalendarIcon, Layout, Activity, Plus, Edit2, Trash2, Check, X } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
-import { dummyUsers, dummySeminarHalls, dummyBookings } from '../utils/dummyData';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
@@ -32,29 +31,29 @@ export default function AdminDashboard() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      setTimeout(() => {
-        const statsData = {
-          totalBookings: dummyBookings.length,
-          totalHalls: dummySeminarHalls.length,
-          totalUsers: dummyUsers.length,
-          bookingsToday: dummyBookings.filter(b => b.date === new Date().toISOString().split('T')[0]).length
-        };
-        
-        // Populate user and hall for bookings
-        const populatedBookings = dummyBookings.map(b => ({
-          ...b,
-          user: dummyUsers.find(u => u.id === b.user) || null,
-          hall: dummySeminarHalls.find(h => h.id === b.hall) || null
-        }));
+      const [statsRes, hallsRes, bookingsRes] = await Promise.all([
+        api.get('/admin/stats'),
+        api.get('/halls'),
+        api.get('/bookings')
+      ]);
 
-        setStats(statsData);
-        setHalls([...dummySeminarHalls]); // Clone to allow local edits (UI only)
-        setBookings(populatedBookings);
-        setLoading(false);
-      }, 500);
+      setStats(statsRes.data);
+      setHalls(hallsRes.data);
+      setBookings(bookingsRes.data);
+      setLoading(false);
     } catch (error) {
       toast.error('Failed to load admin data');
       setLoading(false);
+    }
+  };
+
+  const handleStatusUpdate = async (bookingId, status) => {
+    try {
+      await api.put(`/bookings/${bookingId}/status`, { status });
+      toast.success(`Booking ${status} successfully`);
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update status');
     }
   };
 
@@ -202,6 +201,7 @@ export default function AdminDashboard() {
                   <th className="p-4 font-semibold">Date & Time</th>
                   <th className="p-4 font-semibold">Purpose</th>
                   <th className="p-4 font-semibold">Status</th>
+                  <th className="p-4 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -218,9 +218,34 @@ export default function AdminDashboard() {
                     </td>
                     <td className="p-4 text-gray-600 text-sm max-w-xs truncate">{booking.purpose}</td>
                     <td className="p-4">
-                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${booking.status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                        booking.status === 'confirmed' ? 'bg-green-100 text-green-800' : 
+                        booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                        booking.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
                         {booking.status}
                       </span>
+                    </td>
+                    <td className="p-4 text-right">
+                      {booking.status === 'pending' && (
+                        <div className="flex justify-end gap-2">
+                          <button 
+                            onClick={() => handleStatusUpdate(booking._id, 'confirmed')}
+                            className="p-1.5 bg-green-50 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
+                            title="Approve"
+                          >
+                            <Check size={16} />
+                          </button>
+                          <button 
+                            onClick={() => handleStatusUpdate(booking._id, 'rejected')}
+                            className="p-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                            title="Reject"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
