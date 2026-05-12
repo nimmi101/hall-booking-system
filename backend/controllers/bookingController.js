@@ -29,7 +29,7 @@ const createBooking = async (req, res) => {
     const overlappingBookings = await Booking.find({
       hall,
       date,
-      status: 'confirmed',
+      status: { $in: ['confirmed', 'pending'] },
       $and: [
         { startTime: { $lt: endTime } },
         { endTime: { $gt: startTime } }
@@ -55,13 +55,14 @@ const createBooking = async (req, res) => {
     try {
       await sendEmail({
         email: req.user.email,
-        subject: 'Seminar Hall Booking Confirmation',
+        subject: 'Seminar Hall Booking Request Received',
         message: `
-          <h1>Booking Confirmed</h1>
+          <h1>Booking Request Received</h1>
           <p>Dear ${req.user.name},</p>
-          <p>Your booking for <strong>${seminarHall.name}</strong> on <strong>${new Date(date).toDateString()}</strong> from <strong>${startTime} to ${endTime}</strong> has been confirmed.</p>
+          <p>Your booking request for <strong>${seminarHall.name}</strong> on <strong>${new Date(date).toDateString()}</strong> from <strong>${startTime} to ${endTime}</strong> has been received and is currently <strong>pending approval</strong> from the admin.</p>
           <p>Purpose: ${purpose}</p>
           <br>
+          <p>You will receive another email once your booking is confirmed or rejected.</p>
           <p>Thank you,</p>
           <p>Schedulix Team</p>
         `,
@@ -125,9 +126,54 @@ const cancelBooking = async (req, res) => {
   }
 };
 
+// @desc    Update booking status (Approve/Reject)
+// @route   PUT /api/bookings/:id/status
+// @access  Private/Admin
+const updateBookingStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    if (!['confirmed', 'rejected'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status. Must be confirmed or rejected' });
+    }
+
+    const booking = await Booking.findById(req.params.id).populate('user', 'name email').populate('hall', 'name');
+
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    booking.status = status;
+    const updatedBooking = await booking.save();
+
+    // Send email notification
+    try {
+      await sendEmail({
+        email: booking.user.email,
+        subject: `Seminar Hall Booking ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+        message: `
+          <h1>Booking ${status.charAt(0).toUpperCase() + status.slice(1)}</h1>
+          <p>Dear ${booking.user.name},</p>
+          <p>Your booking request for <strong>${booking.hall.name}</strong> on <strong>${new Date(booking.date).toDateString()}</strong> from <strong>${booking.startTime} to ${booking.endTime}</strong> has been <strong>${status}</strong> by the admin.</p>
+          <br>
+          <p>Thank you,</p>
+          <p>Schedulix Team</p>
+        `,
+      });
+    } catch (emailError) {
+      console.error('Email could not be sent', emailError);
+    }
+
+    res.json(updatedBooking);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   createBooking,
   getUserBookings,
   getAllBookings,
   cancelBooking,
+  updateBookingStatus,
 };
