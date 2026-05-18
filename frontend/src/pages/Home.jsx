@@ -1,18 +1,24 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, ShieldCheck, Clock, MapPin, Users } from 'lucide-react';
-import { dummySeminarHalls } from '../utils/dummyData';
+import api from '../utils/api';
 
 export default function Home() {
   const [halls, setHalls] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate API fetch delay
-    setTimeout(() => {
-      setHalls(dummySeminarHalls);
-      setLoading(false);
-    }, 500);
+    const fetchHalls = async () => {
+      try {
+        const { data } = await api.get('/halls');
+        setHalls(data);
+      } catch (error) {
+        console.error('Failed to fetch halls:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchHalls();
   }, []);
 
   return (

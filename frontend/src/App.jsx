@@ -1,8 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, AuthContext } from './context/AuthContext';
-import { useContext } from 'react';
+import { useContext, useEffect } from 'react';
 import Navbar from './components/Navbar';
-import { ToastContainer } from 'react-toastify';
+import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 // Lazy loading or basic imports for pages
@@ -18,12 +18,15 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
 
   if (loading) return <div>Loading...</div>;
 
+  // Not logged in → go to login
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
+  // Logged in but not admin → redirect to their dashboard with error
   if (requireAdmin && user.role !== 'admin') {
-    return <Navigate to="/" replace />;
+    toast.error('Access denied: Admins only.', { toastId: 'admin-denied' });
+    return <Navigate to="/dashboard" replace />;
   }
 
   return children;

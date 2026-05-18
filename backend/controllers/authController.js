@@ -6,7 +6,7 @@ const generateToken = require('../utils/generateToken');
 // @access  Public
 const registerUser = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;cd
+    const { name, email, password, role } = req.body;
 
     const userExists = await User.findOne({ email });
 
@@ -18,7 +18,7 @@ const registerUser = async (req, res) => {
       name,
       email,
       password,
-      role: role || 'user',
+      role: 'user', // Always force 'user' role — admins are created via seed/DB only
     });
 
     if (user) {

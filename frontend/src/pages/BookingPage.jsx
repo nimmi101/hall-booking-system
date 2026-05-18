@@ -113,7 +113,7 @@ export default function BookingPage() {
               Purpose of Booking
             </label>
             <textarea
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:border-transparent focus:ring-green-500 transition-all duration-200"
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:border-transparent focus:ring-indigo-500 transition-all duration-200"
               rows="3"
               placeholder="E.g., Department Meeting, Guest Lecture"
               value={purpose}

@@ -82,7 +82,9 @@ const createBooking = async (req, res) => {
 // @access  Private
 const getUserBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find({ user: req.user._id }).populate('hall', 'name location');
+    const bookings = await Booking.find({ user: req.user._id })
+      .populate('hall', 'name location')
+      .sort({ createdAt: -1 });
     res.json(bookings);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -94,7 +96,10 @@ const getUserBookings = async (req, res) => {
 // @access  Private/Admin
 const getAllBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find({}).populate('user', 'name email').populate('hall', 'name location');
+    const bookings = await Booking.find({})
+      .populate('user', 'name email')
+      .populate('hall', 'name location')
+      .sort({ createdAt: -1 });
     res.json(bookings);
   } catch (error) {
     res.status(500).json({ message: error.message });

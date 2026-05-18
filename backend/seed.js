@@ -1,8 +1,11 @@
 require('dotenv').config();
+const dns = require('dns');
+dns.setServers(['8.8.8.8', '8.8.4.4']);
 const mongoose = require('mongoose');
 const User = require('./models/User');
 const SeminarHall = require('./models/SeminarHall');
 const Booking = require('./models/Booking');
+const bcrypt = require('bcryptjs');
 const connectDB = require('./config/db');
 
 const seedData = async () => {
@@ -16,46 +19,44 @@ const seedData = async () => {
 
     console.log('Database cleared.');
 
+    // Hash passwords before inserting (insertMany bypasses pre-save hooks)
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash('password123', salt);
+
     // 1. Create Admin & Demo Users
     const createdUsers = await User.insertMany([
       {
         name: 'Admin User',
         email: 'admin@schedulix.com',
-        password: 'password123',
+        password: hashedPassword,
         role: 'admin'
       },
       {
         name: 'John Doe',
         email: 'john@university.edu',
-        password: 'password123',
+        password: hashedPassword,
         role: 'user'
       },
       {
         name: 'Jane Smith',
         email: 'jane@university.edu',
-        password: 'password123',
+        password: hashedPassword,
         role: 'user'
       },
       {
         name: 'Dr. Alan Turing',
         email: 'turing@university.edu',
-        password: 'password123',
+        password: hashedPassword,
         role: 'user'
       },
       {
         name: 'Prof. Marie Curie',
         email: 'curie@university.edu',
-        password: 'password123',
+        password: hashedPassword,
         role: 'user'
       }
     ]);
 
-    // Workaround for insertMany bypassing Mongoose pre('save') hooks:
-    for (let i = 0; i < createdUsers.length; i++) {
-        const user = await User.findById(createdUsers[i]._id);
-        user.password = 'password123';
-        await user.save(); // triggers bcrypt hash
-    }
     console.log('Users seeded.');
 
     // 2. Create Seminar Halls
