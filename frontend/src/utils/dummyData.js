@@ -42,3 +42,4 @@ export const dummyBookings = [
   { _id: 'b14', user: 'u2', hall: 'h2', date: getDate(10), startTime: '09:00', endTime: '11:00', purpose: 'Placement Drive Orientation – Final Year Students', status: 'confirmed' },
   { _id: 'b15', user: 'u3', hall: 'h5', date: getDate(12), startTime: '13:00', endTime: '16:00', purpose: 'Women in STEM Leadership Summit', status: 'confirmed' }
 ];
+ 

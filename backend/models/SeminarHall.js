@@ -33,3 +33,4 @@ const seminarHallSchema = new mongoose.Schema(
 const SeminarHall = mongoose.model('SeminarHall', seminarHallSchema);
 
 module.exports = SeminarHall;
+ 

@@ -306,3 +306,4 @@ function StatCard({ title, value, icon, color }) {
     </div>
   );
 }
+ 

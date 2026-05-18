@@ -70,3 +70,4 @@ export const DUMMY_STATS = {
   totalUsers: 42,
   bookingsToday: 3,
 };
+ 

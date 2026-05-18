@@ -15,3 +15,4 @@ router.route('/:id/cancel').put(protect, cancelBooking);
 router.route('/:id/status').put(protect, admin, updateBookingStatus);
 
 module.exports = router;
+ 

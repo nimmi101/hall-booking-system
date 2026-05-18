@@ -17,3 +17,4 @@ router
   .delete(protect, admin, deleteHall);
 
 module.exports = router;
+ 
