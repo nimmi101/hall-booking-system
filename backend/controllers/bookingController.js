@@ -2,6 +2,12 @@ const Booking = require('../models/Booking');
 const SeminarHall = require('../models/SeminarHall');
 const sendEmail = require('../utils/sendEmail');
 
+const sendEmailInBackground = (options, errorMessage = 'Email could not be sent') => {
+  sendEmail(options).catch((emailError) => {
+    console.error(errorMessage, emailError);
+  });
+};
+
 // @desc    Create new booking
 // @route   POST /api/bookings
 // @access  Private
@@ -50,31 +56,23 @@ const createBooking = async (req, res) => {
     });
 
     const createdBooking = await booking.save();
-    
-    let emailSent = true;
 
-    // Send confirmation email
-    try {
-      await sendEmail({
-        email: req.user.email,
-        subject: 'Seminar Hall Booking Request Received',
-        message: `
-          <h1>Booking Request Received</h1>
-          <p>Dear ${req.user.name},</p>
-          <p>Your booking request for <strong>${seminarHall.name}</strong> on <strong>${new Date(date).toDateString()}</strong> from <strong>${startTime} to ${endTime}</strong> has been received and is currently <strong>pending approval</strong> from the admin.</p>
-          <p>Purpose: ${purpose}</p>
-          <br>
-          <p>You will receive another email once your booking is confirmed or rejected.</p>
-          <p>Thank you,</p>
-          <p>Schedulix Team</p>
-        `,
-      });
-    } catch (emailError) {
-      emailSent = false;
-      console.error('Email could not be sent', emailError);
-    }
+    sendEmailInBackground({
+      email: req.user.email,
+      subject: 'Seminar Hall Booking Request Received',
+      message: `
+        <h1>Booking Request Received</h1>
+        <p>Dear ${req.user.name},</p>
+        <p>Your booking request for <strong>${seminarHall.name}</strong> on <strong>${new Date(date).toDateString()}</strong> from <strong>${startTime} to ${endTime}</strong> has been received and is currently <strong>pending approval</strong> from the admin.</p>
+        <p>Purpose: ${purpose}</p>
+        <br>
+        <p>You will receive another email once your booking is confirmed or rejected.</p>
+        <p>Thank you,</p>
+        <p>Schedulix Team</p>
+      `,
+    }, 'Booking request email could not be sent');
 
-    res.status(201).json({ booking: createdBooking, emailSent });
+    res.status(201).json({ booking: createdBooking, emailQueued: true });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -87,7 +85,7 @@ const getUserBookings = async (req, res) => {
   try {
     const bookings = await Booking.find({ user: req.user._id })
       .populate('hall', 'name location')
-      .sort({ createdAt: -1 });
+      .sort({ updatedAt: -1, createdAt: -1 });
     res.json(bookings);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -102,7 +100,7 @@ const getAllBookings = async (req, res) => {
     const bookings = await Booking.find({})
       .populate('user', 'name email')
       .populate('hall', 'name location')
-      .sort({ createdAt: -1 });
+      .sort({ updatedAt: -1, createdAt: -1 });
     res.json(bookings);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -127,30 +125,30 @@ const cancelBooking = async (req, res) => {
       return res.status(401).json({ message: 'Not authorized to cancel this booking' });
     }
 
-    booking.status = 'cancelled';
-    const updatedBooking = await booking.save();
-
-    let emailSent = true;
-
-    try {
-      await sendEmail({
-        email: booking.user.email,
-        subject: 'Seminar Hall Booking Cancelled',
-        message: `
-          <h1>Booking Cancelled</h1>
-          <p>Dear ${booking.user.name},</p>
-          <p>Your booking for <strong>${booking.hall.name}</strong> on <strong>${new Date(booking.date).toDateString()}</strong> from <strong>${booking.startTime} to ${booking.endTime}</strong> has been <strong>cancelled</strong>.</p>
-          <br>
-          <p>Thank you,</p>
-          <p>Schedulix Team</p>
-        `,
-      });
-    } catch (emailError) {
-      emailSent = false;
-      console.error('Cancellation email could not be sent', emailError);
+    if (!['pending', 'confirmed'].includes(booking.status)) {
+      return res.status(400).json({ message: `Booking is already ${booking.status}` });
     }
 
-    res.json({ booking: updatedBooking, emailSent });
+    booking.status = 'cancelled';
+    await booking.save();
+    const updatedBooking = await Booking.findById(booking._id)
+      .populate('user', 'name email')
+      .populate('hall', 'name location');
+
+    sendEmailInBackground({
+      email: booking.user.email,
+      subject: 'Seminar Hall Booking Cancelled',
+      message: `
+        <h1>Booking Cancelled</h1>
+        <p>Dear ${booking.user.name},</p>
+        <p>Your booking for <strong>${booking.hall.name}</strong> on <strong>${new Date(booking.date).toDateString()}</strong> from <strong>${booking.startTime} to ${booking.endTime}</strong> has been <strong>cancelled</strong>.</p>
+        <br>
+        <p>Thank you,</p>
+        <p>Schedulix Team</p>
+      `,
+    }, 'Cancellation email could not be sent');
+
+    res.json({ booking: updatedBooking, emailQueued: true });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -173,31 +171,47 @@ const updateBookingStatus = async (req, res) => {
       return res.status(404).json({ message: 'Booking not found' });
     }
 
-    booking.status = status;
-    const updatedBooking = await booking.save();
-
-    let emailSent = true;
-
-    // Send email notification
-    try {
-      await sendEmail({
-        email: booking.user.email,
-        subject: `Seminar Hall Booking ${status.charAt(0).toUpperCase() + status.slice(1)}`,
-        message: `
-          <h1>Booking ${status.charAt(0).toUpperCase() + status.slice(1)}</h1>
-          <p>Dear ${booking.user.name},</p>
-          <p>Your booking request for <strong>${booking.hall.name}</strong> on <strong>${new Date(booking.date).toDateString()}</strong> from <strong>${booking.startTime} to ${booking.endTime}</strong> has been <strong>${status}</strong> by the admin.</p>
-          <br>
-          <p>Thank you,</p>
-          <p>Schedulix Team</p>
-        `,
-      });
-    } catch (emailError) {
-      emailSent = false;
-      console.error('Email could not be sent', emailError);
+    if (booking.status !== 'pending') {
+      return res.status(400).json({ message: `Only pending bookings can be updated. This booking is already ${booking.status}` });
     }
 
-    res.json({ booking: updatedBooking, emailSent });
+    if (status === 'confirmed') {
+      const overlappingBooking = await Booking.findOne({
+        _id: { $ne: booking._id },
+        hall: booking.hall._id,
+        date: booking.date,
+        status: 'confirmed',
+        $and: [
+          { startTime: { $lt: booking.endTime } },
+          { endTime: { $gt: booking.startTime } }
+        ]
+      });
+
+      if (overlappingBooking) {
+        return res.status(400).json({ message: 'Hall is already confirmed for this time slot' });
+      }
+    }
+
+    booking.status = status;
+    await booking.save();
+    const updatedBooking = await Booking.findById(booking._id)
+      .populate('user', 'name email')
+      .populate('hall', 'name location');
+
+    sendEmailInBackground({
+      email: booking.user.email,
+      subject: `Seminar Hall Booking ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+      message: `
+        <h1>Booking ${status.charAt(0).toUpperCase() + status.slice(1)}</h1>
+        <p>Dear ${booking.user.name},</p>
+        <p>Your booking request for <strong>${booking.hall.name}</strong> on <strong>${new Date(booking.date).toDateString()}</strong> from <strong>${booking.startTime} to ${booking.endTime}</strong> has been <strong>${status}</strong> by the admin.</p>
+        <br>
+        <p>Thank you,</p>
+        <p>Schedulix Team</p>
+      `,
+    }, 'Status update email could not be sent');
+
+    res.json({ booking: updatedBooking, emailQueued: true });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

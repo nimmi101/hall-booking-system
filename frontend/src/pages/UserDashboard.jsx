@@ -9,6 +9,7 @@ export default function UserDashboard() {
   const [halls, setHalls] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [cancellingBookingId, setCancellingBookingId] = useState(null);
   const [activeTab, setActiveTab] = useState('halls'); // 'halls' or 'history'
 
   useEffect(() => {
@@ -34,15 +35,19 @@ export default function UserDashboard() {
   const handleCancelBooking = async (id) => {
     if (window.confirm('Are you sure you want to cancel this booking?')) {
       try {
+        setCancellingBookingId(id);
         const { data } = await api.put(`/bookings/${id}/cancel`);
-        if (data.emailSent === false) {
-          toast.warning('Booking cancelled, but email could not be sent');
-        } else {
-          toast.success('Booking cancelled successfully');
-        }
+        setBookings(currentBookings =>
+          currentBookings.map(booking =>
+            booking._id === id ? data.booking : booking
+          )
+        );
+        toast.success('Booking cancelled successfully');
         fetchData(); // Refresh list
       } catch (error) {
         toast.error(error.response?.data?.message || 'Failed to cancel booking');
+      } finally {
+        setCancellingBookingId(null);
       }
     }
   };
@@ -170,9 +175,10 @@ export default function UserDashboard() {
                       {(booking.status === 'confirmed' || booking.status === 'pending') && new Date(booking.date) >= new Date(new Date().setHours(0,0,0,0)) && (
                         <button
                           onClick={() => handleCancelBooking(booking._id)}
-                          className="text-red-500 hover:text-red-700 text-sm font-medium transition-colors"
+                          disabled={cancellingBookingId === booking._id}
+                          className="text-red-500 hover:text-red-700 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          Cancel
+                          {cancellingBookingId === booking._id ? 'Cancelling...' : 'Cancel'}
                         </button>
                       )}
                     </td>

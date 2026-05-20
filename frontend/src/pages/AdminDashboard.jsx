@@ -10,6 +10,7 @@ export default function AdminDashboard() {
   const [halls, setHalls] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [updatingBookingId, setUpdatingBookingId] = useState(null);
   
   // Tabs: 'overview', 'halls', 'bookings'
   const [activeTab, setActiveTab] = useState('overview');
@@ -49,15 +50,19 @@ export default function AdminDashboard() {
 
   const handleStatusUpdate = async (bookingId, status) => {
     try {
+      setUpdatingBookingId(bookingId);
       const { data } = await api.put(`/bookings/${bookingId}/status`, { status });
-      if (data.emailSent === false) {
-        toast.warning(`Booking ${status}, but email could not be sent`);
-      } else {
-        toast.success(`Booking ${status} successfully`);
-      }
+      setBookings(currentBookings =>
+        currentBookings.map(booking =>
+          booking._id === bookingId ? data.booking : booking
+        )
+      );
+      toast.success(`Booking ${status} successfully`);
       fetchData();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to update status');
+    } finally {
+      setUpdatingBookingId(null);
     }
   };
 
@@ -236,14 +241,16 @@ export default function AdminDashboard() {
                         <div className="flex justify-end gap-2">
                           <button 
                             onClick={() => handleStatusUpdate(booking._id, 'confirmed')}
-                            className="p-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors"
+                            disabled={updatingBookingId === booking._id}
+                            className="p-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             title="Approve"
                           >
                             <Check size={16} />
                           </button>
                           <button 
                             onClick={() => handleStatusUpdate(booking._id, 'rejected')}
-                            className="p-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                            disabled={updatingBookingId === booking._id}
+                            className="p-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             title="Reject"
                           >
                             <X size={16} />
