@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
+const sendEmail = require('../utils/sendEmail');
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -22,6 +23,24 @@ const registerUser = async (req, res) => {
     });
 
     if (user) {
+      try {
+        await sendEmail({
+          email: user.email,
+          subject: 'Welcome to Schedulix',
+          message: `
+            <h1>Registration Successful</h1>
+            <p>Dear ${user.name},</p>
+            <p>Your Schedulix account has been created successfully.</p>
+            <p>You can now log in and request seminar hall bookings.</p>
+            <br>
+            <p>Thank you,</p>
+            <p>Schedulix Team</p>
+          `,
+        });
+      } catch (emailError) {
+        console.error('Registration email could not be sent', emailError);
+      }
+
       res.status(201).json({
         _id: user._id,
         name: user.name,
