@@ -50,14 +50,18 @@ export default function BookingPage() {
 
     setSubmitting(true);
     try {
-      await api.post('/bookings', {
+      const { data } = await api.post('/bookings', {
         hall: hallId,
         date,
         startTime,
         endTime,
         purpose
       });
-      toast.success('Booking request submitted successfully!');
+      if (data.emailSent === false) {
+        toast.warning('Booking request submitted, but email could not be sent');
+      } else {
+        toast.success('Booking request submitted successfully!');
+      }
       navigate('/dashboard');
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to submit booking');

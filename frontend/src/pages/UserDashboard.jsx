@@ -34,8 +34,12 @@ export default function UserDashboard() {
   const handleCancelBooking = async (id) => {
     if (window.confirm('Are you sure you want to cancel this booking?')) {
       try {
-        await api.put(`/bookings/${id}/cancel`);
-        toast.success('Booking cancelled successfully');
+        const { data } = await api.put(`/bookings/${id}/cancel`);
+        if (data.emailSent === false) {
+          toast.warning('Booking cancelled, but email could not be sent');
+        } else {
+          toast.success('Booking cancelled successfully');
+        }
         fetchData(); // Refresh list
       } catch (error) {
         toast.error(error.response?.data?.message || 'Failed to cancel booking');

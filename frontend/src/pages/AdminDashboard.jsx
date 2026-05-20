@@ -42,15 +42,19 @@ export default function AdminDashboard() {
       setBookings(bookingsRes.data);
       setLoading(false);
     } catch (error) {
-      toast.error('Failed to load admin data');
+      toast.error(error.response?.data?.message || 'Failed to load admin data');
       setLoading(false);
     }
   };
 
   const handleStatusUpdate = async (bookingId, status) => {
     try {
-      await api.put(`/bookings/${bookingId}/status`, { status });
-      toast.success(`Booking ${status} successfully`);
+      const { data } = await api.put(`/bookings/${bookingId}/status`, { status });
+      if (data.emailSent === false) {
+        toast.warning(`Booking ${status}, but email could not be sent`);
+      } else {
+        toast.success(`Booking ${status} successfully`);
+      }
       fetchData();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to update status');

@@ -51,6 +51,8 @@ const createBooking = async (req, res) => {
 
     const createdBooking = await booking.save();
     
+    let emailSent = true;
+
     // Send confirmation email
     try {
       await sendEmail({
@@ -68,10 +70,11 @@ const createBooking = async (req, res) => {
         `,
       });
     } catch (emailError) {
+      emailSent = false;
       console.error('Email could not be sent', emailError);
     }
 
-    res.status(201).json(createdBooking);
+    res.status(201).json({ booking: createdBooking, emailSent });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -127,6 +130,8 @@ const cancelBooking = async (req, res) => {
     booking.status = 'cancelled';
     const updatedBooking = await booking.save();
 
+    let emailSent = true;
+
     try {
       await sendEmail({
         email: booking.user.email,
@@ -141,10 +146,11 @@ const cancelBooking = async (req, res) => {
         `,
       });
     } catch (emailError) {
+      emailSent = false;
       console.error('Cancellation email could not be sent', emailError);
     }
 
-    res.json(updatedBooking);
+    res.json({ booking: updatedBooking, emailSent });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -170,6 +176,8 @@ const updateBookingStatus = async (req, res) => {
     booking.status = status;
     const updatedBooking = await booking.save();
 
+    let emailSent = true;
+
     // Send email notification
     try {
       await sendEmail({
@@ -185,10 +193,11 @@ const updateBookingStatus = async (req, res) => {
         `,
       });
     } catch (emailError) {
+      emailSent = false;
       console.error('Email could not be sent', emailError);
     }
 
-    res.json(updatedBooking);
+    res.json({ booking: updatedBooking, emailSent });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
