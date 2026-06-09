@@ -5,11 +5,17 @@ const sendEmail = async (options) => {
 
   if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
     transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      family: 4, // Force IPv4 for Nodemailer socket
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
+      tls: {
+        rejectUnauthorized: false
+      }
     });
   } else {
     console.log('Using Ethereal email for testing (no EMAIL_USER/EMAIL_PASS provided)');
