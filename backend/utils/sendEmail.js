@@ -1,27 +1,44 @@
 const nodemailer = require('nodemailer');
 
 const sendEmail = async (options) => {
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    throw new Error('Email credentials are not configured');
+  let transporter;
+
+  if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+    transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+  } else {
+    console.log('Using Ethereal email for testing (no EMAIL_USER/EMAIL_PASS provided)');
+    const testAccount = await nodemailer.createTestAccount();
+    transporter = nodemailer.createTransport({
+      host: 'smtp.ethereal.email',
+      port: 587,
+      secure: false,
+      auth: {
+        user: testAccount.user,
+        pass: testAccount.pass,
+      },
+    });
   }
 
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
-
   const mailOptions = {
-    from: `Schedulix <${process.env.EMAIL_USER}>`,
+    from: process.env.EMAIL_USER ? `Schedulix <${process.env.EMAIL_USER}>` : '"Schedulix Test" <test@schedulix.com>',
     to: options.email,
     subject: options.subject,
     html: options.message,
   };
 
   const info = await transporter.sendMail(mailOptions);
-  console.log(`Email sent: ${info.response}`);
+  console.log(`Email sent: ${info.messageId}`);
+  
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.log(`Preview URL: ${nodemailer.getTestMessageUrl(info)}`);
+  }
+
   return info;
 };
 
